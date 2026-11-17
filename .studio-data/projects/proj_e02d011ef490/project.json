@@ -1,0 +1,101 @@
+{
+  "id": "proj_e02d011ef490",
+  "name": "Verification Test",
+  "campaignType": "own_brand",
+  "clientOrBrandName": "",
+  "language": "tagalog",
+  "targetTone": "viral_urgency",
+  "visualStyle": "Luxury",
+  "aspectRatio": "9:16",
+  "generationMode": "exact_product",
+  "motionPreset": "Orbit Camera",
+  "motionPrompt": "",
+  "notes": "",
+  "analysis": {
+    "productName": "Aurora Brightening Vitamin C Serum",
+    "category": "Skincare",
+    "appearance": "Minimalist apothecary-style dropper bottle with a clear, professional aesthetic.",
+    "colors": [
+      "Amber (#925A24)",
+      "Black (#000000)",
+      "White (#FFFFFF)"
+    ],
+    "shape": "Cylindrical bottle with a tapered shoulder and straight dropper neck.",
+    "material": "Amber glass bottle with a textured black plastic dropper cap.",
+    "branding": "AURORA",
+    "visibleText": "AURORA BRIGHTENING VITAMIN C SERUM with Hyaluronic Acid & Kakadu Plum 30 ml / 1 fl oz",
+    "distinguishingDetails": "Clear white label with clean sans-serif typography, ribbed dropper handle.",
+    "wearType": "handheld_showcase",
+    "shortTagline": "Get that natural glow with the power of Kakadu Plum.",
+    "keyBenefits": [
+      "Brightening effect with Vitamin C",
+      "Deep hydration from Hyaluronic Acid",
+      "Antioxidant boost from Kakadu Plum extract",
+      "Precise application with dropper"
+    ],
+    "targetAudience": "Skincare enthusiasts looking for brightening and hydrating daily treatments.",
+    "productBox": {
+      "ymin": 167,
+      "xmin": 388,
+      "ymax": 866,
+      "xmax": 612
+    },
+    "suggestedBackdrop": "blush",
+    "accentHex": "D4AF37",
+    "strategist": {
+      "competitiveAngle": "Focus on the potent, high-quality botanical ingredients like Kakadu Plum vs. generic serums.",
+      "hooks": [
+        {
+          "id": "hook_01",
+          "style": "Fast-paced reveal",
+          "onScreenText": "Finally found my glow-up secret!",
+          "spokenLine": "Guys, ang tagal ko hinanap yung serum na magbibigay ng natural glow, eto na siya!"
+        },
+        {
+          "id": "hook_02",
+          "style": "POV aesthetic",
+          "onScreenText": "Vitamin C na hindi nakaka-dry?",
+          "spokenLine": "Looking for the perfect Vitamin C? Dito na tayo sa may Hyaluronic Acid at Kakadu Plum."
+        },
+        {
+          "id": "hook_03",
+          "style": "Problem-solution",
+          "onScreenText": "Dull skin? Huwag mag-alala.",
+          "spokenLine": "Pagod ka na ba magmukhang haggard? Try this Aurora Serum."
+        }
+      ],
+      "headlines": [
+        "Glow Up with Aurora Vitamin C",
+        "The Brightening Secret You Need",
+        "Kakadu Plum Power for Radiant Skin"
+      ],
+      "productDescription": "The Aurora Brightening Vitamin C Serum combines the power of Vitamin C with hydrating Hyaluronic Acid and nutrient-rich Kakadu Plum. It is formulated to help brighten your complexion and keep your skin feeling moisturized and fresh every day.",
+      "caption": "POV: Finally found the serum that gives me that effortless glow! ✨ Honestly love how light this feels on my skin. Definitely adding this to my daily routine! \n\nCheck out the yellow basket below to get yours! \n\n#AuroraPH #VitaminCSerum #SkincareGoals #GlowUp #BudolFinds #SkincarePH #RadiantSkin",
+      "hashtags": [
+        "#AuroraPH",
+        "#VitaminCSerum",
+        "#SkincareGoals",
+        "#GlowUp",
+        "#BudolFinds",
+        "#SkincarePH",
+        "#RadiantSkin"
+      ],
+      "ctaSuggestions": [
+        "Click the yellow basket now!",
+        "Grab yours while stocks last!",
+        "Add to cart for that glow!"
+      ],
+      "videoScript": {
+        "beat1Hook": "Grab the Aurora serum and show your dull skin vs glow transformation.",
+        "beat2Benefit": "Point to the ingredients list emphasizing Hyaluronic Acid and Kakadu Plum.",
+        "beat3Offer": "Close with a hand gesture pointing to the yellow basket on screen.",
+        "voiceoverText": "Grabe ang glow up ko simula nung ginamit ko 'to. With Vitamin C and Kakadu Plum, talagang hydrated at bright ang skin. Check out the yellow basket!"
+      },
+      "googleFlowPrompt": "UGC-style 9:16 vertical video. A relatable girl sits in a bright, minimalist room. 'Finally found my glow-up secret!' she says while holding the Aurora serum bottle. She applies it, showing the texture on her hand. Clean, airy aesthetic with soft morning sunlight. The camera pans smoothly to a close-up of the bottle, then ends with her tapping the yellow basket icon on the screen. Professional skincare influencer vibe.",
+      "backgroundPrompt": "Soft airy studio interior, cream and blush tones, minimalist vanity shelf with a small succulent and sunlight shadows, high-end skincare aesthetic, blurred bokeh background, shallow depth of field, photorealistic, 8k."
+    }
+  },
+  "assets": [],
+  "createdAt": "2026-11-17T12:13:13.819Z",
+  "updatedAt": "2026-11-17T12:13:13.819Z"
+}

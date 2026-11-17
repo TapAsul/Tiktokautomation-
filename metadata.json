@@ -1,0 +1,6 @@
+{
+  "name": "KlipCart — TikTok Shop Video & Strategist Studio",
+  "description": "Turn any product screenshot into a background-removed studio image, an automated 9:16 TikTok Shop showcase video with AI voiceover, and competitive strategist captions.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,263 @@
+{
+  "analysisCalls": 4,
+  "copyCalls": 11,
+  "imageGenCalls": 0,
+  "videoGenCalls": 0,
+  "ttsCalls": 2,
+  "errors": 11,
+  "lastUpdated": "2026-11-17T12:39:50.730Z",
+  "recentLogs": [
+    {
+      "id": "7947db37",
+      "operation": "tts",
+      "model": "gemini-3.8-flash-lite-tts",
+      "status": "success",
+      "durationMs": 6047,
+      "note": "Charon:full_tagalog",
+      "timestamp": "2026-11-17T12:39:50.730Z"
+    },
+    {
+      "id": "dacf51ec",
+      "operation": "copy",
+      "model": "gemini-3.1-flash-lite",
+      "status": "success",
+      "durationMs": 2489,
+      "note": "vo-script:full_tagalog",
+      "timestamp": "2026-11-17T12:39:44.673Z"
+    },
+    {
+      "id": "6b070a46",
+      "operation": "video_gen",
+      "model": "gemini-omni-1.2-flash",
+      "status": "error",
+      "durationMs": 0,
+      "note": "Video generation failed.",
+      "timestamp": "2026-11-17T12:28:50.815Z"
+    },
+    {
+      "id": "4076ea02",
+      "operation": "copy",
+      "model": "gemini-3.1-flash-lite",
+      "status": "success",
+      "durationMs": 16069,
+      "note": "Luxury Commercial",
+      "timestamp": "2026-11-17T12:28:10.922Z"
+    },
+    {
+      "id": "1f14083a",
+      "operation": "tts",
+      "model": "gemini-3.8-flash-lite-tts",
+      "status": "success",
+      "durationMs": 2794,
+      "note": "Kore",
+      "timestamp": "2026-11-17T12:25:23.767Z"
+    },
+    {
+      "id": "8c1379c7",
+      "operation": "image_gen",
+      "model": "gemini-3.1-flash-lite-image",
+      "status": "error",
+      "durationMs": 384,
+      "note": "Quota limit is 0 on the active free-tier environment for gemini-3.1-flash-lite-image. This model requires a billed/paid tier in the current ",
+      "timestamp": "2026-11-17T12:25:18.057Z"
+    },
+    {
+      "id": "67ea6838",
+      "operation": "image_gen",
+      "model": "gemini-3.1-flash-lite-image",
+      "status": "error",
+      "durationMs": 255,
+      "note": "Quota limit is 0 on the active free-tier environment for gemini-3.1-flash-lite-image. This model requires a billed/paid tier in the current ",
+      "timestamp": "2026-11-17T12:25:17.927Z"
+    },
+    {
+      "id": "d8cef628",
+      "operation": "image_gen",
+      "model": "gemini-3.1-flash-lite-image",
+      "status": "error",
+      "durationMs": 254,
+      "note": "Quota limit is 0 on the active free-tier environment for gemini-3.1-flash-lite-image. This model requires a billed/paid tier in the current ",
+      "timestamp": "2026-11-17T12:25:17.926Z"
+    },
+    {
+      "id": "e4aeb26d",
+      "operation": "analysis",
+      "model": "gemini-3.1-flash-lite",
+      "status": "success",
+      "durationMs": 6458,
+      "note": "Royal Blue Championship Athletic Club T-Shirt",
+      "timestamp": "2026-11-17T12:25:17.068Z"
+    },
+    {
+      "id": "c7a4dfd9",
+      "operation": "video_gen",
+      "model": "gemini-omni-1.2-flash",
+      "status": "error",
+      "durationMs": 198,
+      "note": "Model not found or unavailable for gemini-omni-1.2-flash: 404 Model 'gemini-omni-1.2-flash' not found. If this model or capability is only a",
+      "timestamp": "2026-11-17T12:23:08.308Z"
+    },
+    {
+      "id": "764877dc",
+      "operation": "copy",
+      "model": "gemini-3.1-flash-lite",
+      "status": "success",
+      "durationMs": 26625,
+      "note": "Orbit Camera",
+      "timestamp": "2026-11-17T12:16:28.999Z"
+    },
+    {
+      "id": "6b133e05",
+      "operation": "image_gen",
+      "model": "gemini-3.1-flash-lite-image",
+      "status": "error",
+      "durationMs": 188,
+      "note": "Quota limit is 0 on the active free-tier environment for gemini-3.1-flash-lite-image. This model requires a billed/paid tier in the current ",
+      "timestamp": "2026-11-17T12:16:02.365Z"
+    },
+    {
+      "id": "d3210b8d",
+      "operation": "copy",
+      "model": "gemini-3.1-flash-lite",
+      "status": "success",
+      "durationMs": 3484,
+      "note": "Aurora Brightening Vitamin C Serum",
+      "timestamp": "2026-11-17T12:16:02.159Z"
+    },
+    {
+      "id": "eba066f9",
+      "operation": "analysis",
+      "model": "gemini-3.1-flash-lite",
+      "status": "success",
+      "durationMs": 7657,
+      "note": "Aurora Brightening Vitamin C Serum",
+      "timestamp": "2026-11-17T12:15:58.665Z"
+    },
+    {
+      "id": "291b679c",
+      "operation": "copy",
+      "model": "gemini-3.1-flash-lite",
+      "status": "success",
+      "durationMs": 2484,
+      "note": "Orbit Camera",
+      "timestamp": "2026-11-17T12:14:29.260Z"
+    },
+    {
+      "id": "dfa9d6b9",
+      "operation": "image_gen",
+      "model": "gemini-3.1-flash-lite-image",
+      "status": "error",
+      "durationMs": 260,
+      "note": "Quota limit is 0 on the active free-tier environment for gemini-3.1-flash-lite-image. This model requires a billed/paid tier in the current ",
+      "timestamp": "2026-11-17T12:14:26.769Z"
+    },
+    {
+      "id": "997824cf",
+      "operation": "copy",
+      "model": "gemini-3.1-flash-lite",
+      "status": "success",
+      "durationMs": 33438,
+      "note": "AURORA Brightening Vitamin C Serum",
+      "timestamp": "2026-11-17T12:14:26.501Z"
+    },
+    {
+      "id": "94ee6a49",
+      "operation": "analysis",
+      "model": "gemini-3.1-flash-lite",
+      "status": "success",
+      "durationMs": 35548,
+      "note": "AURORA Brightening Vitamin C Serum",
+      "timestamp": "2026-11-17T12:13:53.052Z"
+    },
+    {
+      "id": "f676f7c5",
+      "operation": "copy",
+      "model": "gemini-3.1-flash-lite",
+      "status": "success",
+      "durationMs": 2940,
+      "note": "Orbit Camera",
+      "timestamp": "2026-11-17T12:13:13.812Z"
+    },
+    {
+      "id": "18a06a72",
+      "operation": "image_gen",
+      "model": "gemini-3.1-flash-lite-image",
+      "status": "error",
+      "durationMs": 267,
+      "note": "Quota limit is 0 on the active free-tier environment for gemini-3.1-flash-lite-image. This model requires a billed/paid tier in the current ",
+      "timestamp": "2026-11-17T12:13:10.862Z"
+    },
+    {
+      "id": "d3ca71aa",
+      "operation": "image_gen",
+      "model": "gemini-3.1-flash-lite-image",
+      "status": "error",
+      "durationMs": 266,
+      "note": "Quota limit is 0 on the active free-tier environment for gemini-3.1-flash-lite-image. This model requires a billed/paid tier in the current ",
+      "timestamp": "2026-11-17T12:13:10.861Z"
+    },
+    {
+      "id": "d4bbbf68",
+      "operation": "image_gen",
+      "model": "gemini-3.1-flash-lite-image",
+      "status": "error",
+      "durationMs": 265,
+      "note": "Quota limit is 0 on the active free-tier environment for gemini-3.1-flash-lite-image. This model requires a billed/paid tier in the current ",
+      "timestamp": "2026-11-17T12:13:10.860Z"
+    },
+    {
+      "id": "66fcefa1",
+      "operation": "copy",
+      "model": "gemini-3.1-flash-lite",
+      "status": "success",
+      "durationMs": 33621,
+      "note": "Aurora Brightening Vitamin C Serum",
+      "timestamp": "2026-11-17T12:13:10.588Z"
+    },
+    {
+      "id": "d06a5422",
+      "operation": "analysis",
+      "model": "gemini-3.1-flash-lite",
+      "status": "success",
+      "durationMs": 35904,
+      "note": "Aurora Brightening Vitamin C Serum",
+      "timestamp": "2026-11-17T12:12:36.959Z"
+    },
+    {
+      "id": "f01513d0",
+      "operation": "image_gen",
+      "model": "gemini-3.1-flash-lite-image",
+      "status": "error",
+      "durationMs": 249,
+      "note": "{\"error\":{\"code\":429,\"message\":\"You exceeded your current quota, please check your plan and billing details. For more information on this er",
+      "timestamp": "2026-11-17T12:03:12.876Z"
+    },
+    {
+      "id": "736e90ca",
+      "operation": "copy",
+      "model": "gemini-3.1-flash-lite",
+      "status": "success",
+      "durationMs": 26120,
+      "note": "Orbit camera",
+      "timestamp": "2026-11-17T11:27:19.379Z"
+    },
+    {
+      "id": "4ba64ff1",
+      "operation": "copy",
+      "model": "gemini-3.1-flash-lite",
+      "status": "success",
+      "durationMs": 25762,
+      "note": "Cinematic camera zoom",
+      "timestamp": "2026-11-17T11:26:24.703Z"
+    },
+    {
+      "id": "2e8a45cd",
+      "operation": "copy",
+      "model": "gemini-3.1-flash-lite",
+      "status": "success",
+      "durationMs": 2887,
+      "note": "background-prompt",
+      "timestamp": "2026-11-17T11:25:58.921Z"
+    }
+  ]
+}

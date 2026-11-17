@@ -1,0 +1,9 @@
+{
+  "analysisModel": "gemini-4-hydrogen",
+  "analysisFallbackModel": "gemini-3.1-flash-lite",
+  "imageGenModel": "gemini-3.1-flash-lite-image",
+  "videoGenModel": "gemini-omni-1.2-flash",
+  "ttsModel": "gemini-3.8-flash-lite-tts",
+  "ttsFallbackModel": "gemini-3.8-flash-tts",
+  "updatedAt": "2026-11-17T11:25:48.291Z"
+}
