@@ -1,12 +1,21 @@
 {
   "analysisCalls": 4,
-  "copyCalls": 11,
+  "copyCalls": 12,
   "imageGenCalls": 0,
   "videoGenCalls": 0,
   "ttsCalls": 2,
   "errors": 11,
-  "lastUpdated": "2026-11-17T12:39:50.730Z",
+  "lastUpdated": "2026-11-17T17:25:22.034Z",
   "recentLogs": [
+    {
+      "id": "69058792",
+      "operation": "copy",
+      "model": "gemini-3.1-flash-lite",
+      "status": "success",
+      "durationMs": 19274,
+      "note": "flow-prompts:Aurora Vitamin C Serum",
+      "timestamp": "2026-11-17T17:25:22.034Z"
+    },
     {
       "id": "7947db37",
       "operation": "tts",

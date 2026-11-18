@@ -868,6 +868,160 @@ Include: competitiveAngle, 3 hooks, 3 headlines, productDescription, caption, 6â
     }
   });
 
+  // 3B. Google Flow Tagalog Creator Prompt Options
+  app.post("/api/google-flow/prompts", async (req: Request, res: Response) => {
+    const start = Date.now();
+    const cfg = getModelConfig();
+    try {
+      const {
+        productName,
+        category,
+        appearance,
+        keyBenefits,
+        pricePromo,
+        verifiedDiscounts,
+        productDetails,
+        presenter,
+        hookAngle,
+        scene,
+      } = req.body as {
+        productName?: string;
+        category?: string;
+        appearance?: string;
+        keyBenefits?: string[];
+        pricePromo?: string;
+        verifiedDiscounts?: string;
+        productDetails?: string;
+        presenter?: string;
+        hookAngle?: string;
+        scene?: string;
+      };
+
+      const cleanName = clampText(productName, 160);
+      if (!cleanName) {
+        res.status(400).json({ error: "Product name or description is required." });
+        return;
+      }
+
+      const presenterDesc =
+        presenter === "pinoy_reviewer"
+          ? "relatable Filipino male creator in his mid-20s wearing clean casual streetwear"
+          : presenter === "mom_home"
+            ? "warm, trustworthy Filipino mom/home creator in neat everyday homewear"
+            : presenter === "luxury_host"
+              ? "polished, confident Filipina commercial host in refined minimalist styling"
+              : "expressive Filipina Gen-Z / Millennial TikTok creator in trendy casual outfit";
+
+      const hookDesc =
+        hookAngle === "budol_discovery"
+          ? "Excited 'Grabe, totoo nga!' budol discovery hook that sparks instant FOMO and curiosity"
+          : hookAngle === "problem_solution"
+            ? "Relatable 'Bago ka bumili...' pain-point-to-relief hook solving a real daily frustration"
+            : hookAngle === "sulit_proof"
+              ? "Skeptic-turned-believer 'Sulit ba talaga?' proof hook showing why buyers don't regret checking out"
+              : "Pattern-interrupt 'Huwag mag-scroll!' curiosity hook that makes buyers stop immediately in 0-3s";
+
+      const sceneDesc =
+        scene === "living_room"
+          ? "cozy modern Manila apartment living room with soft afternoon window light"
+          : scene === "studio_desk"
+            ? "clean minimalist creator desk setup with soft key light and subtle rim light"
+            : scene === "outdoor_sunlit"
+              ? "sunlit lifestyle balcony/cafe background with natural shallow depth-of-field bokeh"
+              : "bright modern bedroom vanity with warm natural daylight";
+
+      const facts = [
+        `Product: ${cleanName}`,
+        category ? `Category: ${clampText(category, 80)}` : "",
+        appearance ? `Visual Appearance: ${clampText(appearance, 240)}` : "",
+        Array.isArray(keyBenefits) && keyBenefits.length > 0
+          ? `Verified Benefits: ${keyBenefits.slice(0, 5).map((b) => clampText(b, 120)).join("; ")}`
+          : "",
+        pricePromo?.trim() ? `Verified Price: ${clampText(pricePromo, 200)}` : "",
+        verifiedDiscounts?.trim()
+          ? `Verified Promo/Discount: ${clampText(verifiedDiscounts, 200)}`
+          : "",
+        productDetails?.trim()
+          ? `Seller Specs/Details: ${clampText(productDetails, 500)}`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      const ai = getGeminiClient();
+      const { response, modelUsed } = await generateWithConfigurableModel(
+        ai,
+        `${facts}
+
+Creator Persona: ${presenterDesc}
+Hook Style: ${hookDesc}
+Scene Setting: ${sceneDesc}
+
+Create 3 DISTINCT Google Flow (labs.google/fx/tools/flow) 9:16 vertical UGC video prompts.
+CRITICAL RULES FOR EVERY OPTION:
+1. A Filipino/Tagalog person MUST appear on camera actively holding, wearing, or demonstrating the exact product (${cleanName}) with natural hand gestures and eye contact.
+2. Each prompt MUST include a punchy, natural spoken Tagalog opening hook line in quotes ("...") delivered in the first 0â€“3 seconds designed to hook potential Filipino buyers immediately, PLUS a follow-up spoken Tagalog benefit/CTA line in quotes ("...") pointing toward the TikTok yellow basket.
+3. Describe realistic smartphone/UGC camera framing (9:16 vertical, handheld micro-movement, close-up product cut-in, warm lighting, natural facial expressions, no awkward robotic acting).
+4. Vary the 3 options so the user gets genuinely different creative angles (e.g., Option 1: Relatable Problem-Interrupt Hook, Option 2: Close-Up Demo & Honest Reaction, Option 3: Best-Value / Checkout Urgency Hook).
+5. TRUTHFULNESS RULE: NEVER invent prices, discounts, percentages off, free shipping, or unverified specs not explicitly provided above.`,
+        {
+          systemInstruction:
+            "You are an expert Filipino TikTok Shop UGC director and Google Flow prompt engineer. Output valid JSON matching the schema.",
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              options: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    id: { type: Type.STRING },
+                    label: { type: Type.STRING },
+                    tagalogHookQuote: { type: Type.STRING },
+                    creatorAction: { type: Type.STRING },
+                    fullPrompt: { type: Type.STRING },
+                  },
+                  required: [
+                    "id",
+                    "label",
+                    "tagalogHookQuote",
+                    "creatorAction",
+                    "fullPrompt",
+                  ],
+                },
+              },
+            },
+            required: ["options"],
+          },
+        }
+      );
+
+      const parsed = JSON.parse((response.text ?? "{}").trim()) as {
+        options?: Array<{
+          id: string;
+          label: string;
+          tagalogHookQuote: string;
+          creatorAction: string;
+          fullPrompt: string;
+        }>;
+      };
+
+      const options = Array.isArray(parsed.options) ? parsed.options.slice(0, 3) : [];
+      if (options.length === 0) {
+        res.status(502).json({ error: "No Google Flow prompt options returned." });
+        return;
+      }
+
+      recordUsage("copy", modelUsed, "success", Date.now() - start, `flow-prompts:${cleanName}`);
+      res.json({ options });
+    } catch (error: unknown) {
+      const message = formatGeminiError(error, cfg.analysisModel);
+      recordUsage("copy", cfg.analysisModel, "error", Date.now() - start, message);
+      res.status(500).json({ error: message });
+    }
+  });
+
   // 4A. Generate / Rewrite Tagalog / Taglish / English Voiceover Script
   app.post("/api/voiceover/script", async (req: Request, res: Response) => {
     const start = Date.now();

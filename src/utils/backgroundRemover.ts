@@ -1,4 +1,8 @@
 import type { BackdropPreset, CutoutResult, ProductBox, WearType } from "../types/studio";
+import defaultUgcTryOnUrl from "../assets/images/ugc_creator_tryon_1794655293391.jpg";
+import defaultUgcPointingUrl from "../assets/images/ugc_creator_pointing_clean_1794655311788.jpg";
+
+export const PRODUCT_CROP_PAD = 42;
 
 export interface BackdropTheme {
   id: BackdropPreset;
@@ -117,31 +121,63 @@ function colorDist(r1: number, g1: number, b1: number, c: RGB): number {
   );
 }
 
-function samplePerimeterClusters(
+interface NormalizedRect {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+function sampleCleanPerimeterClusters(
   data: Uint8ClampedArray,
   width: number,
-  height: number
+  height: number,
+  innerBox: NormalizedRect
 ): RGB[] {
   const samples: RGB[] = [];
-  const step = Math.max(1, Math.floor(Math.min(width, height) / 80));
-  const margin = Math.max(2, Math.floor(Math.min(width, height) * 0.015));
+  const step = Math.max(1, Math.floor(Math.min(width, height) / 90));
+  const margin = Math.max(3, Math.floor(Math.min(width, height) * 0.02));
+  const cornerBandX = Math.max(8, Math.floor(width * 0.2));
+  const hasBottomClearance = innerBox.maxY < height - Math.max(8, Math.floor(height * 0.04));
 
   const pushPixel = (x: number, y: number) => {
+    if (x < 0 || x >= width || y < 0 || y >= height) return;
     const idx = (y * width + x) * 4;
     if (data[idx + 3] < 128) return;
     samples.push({ r: data[idx], g: data[idx + 1], b: data[idx + 2] });
   };
 
+  // Top border + upper corner patches (highest reliability, free of cast floor shadows)
   for (let x = 0; x < width; x += step) {
     for (let m = 0; m < margin; m++) {
       pushPixel(x, m);
-      pushPixel(x, height - 1 - m);
+      pushPixel(x, m); // double-weight top sky/backdrop
+      // Only sample bottom-center if there is verified clearance below productBox
+      if (x < cornerBandX || x > width - cornerBandX || hasBottomClearance) {
+        pushPixel(x, height - 1 - m);
+      }
     }
   }
-  for (let y = 0; y < height; y += step) {
+
+  // Left and right borders (exclude lower 15% near cast floor shadow if clearance is tight)
+  const sideLimitY = hasBottomClearance
+    ? height
+    : Math.min(height, Math.round(innerBox.maxY - (innerBox.maxY - innerBox.minY) * 0.1));
+  for (let y = 0; y < sideLimitY; y += step) {
     for (let m = 0; m < margin; m++) {
       pushPixel(m, y);
       pushPixel(width - 1 - m, y);
+    }
+  }
+
+  // Explicit 4-corner patches to anchor true vignette extremes
+  const patch = Math.max(4, Math.floor(Math.min(width, height) * 0.035));
+  for (let dy = 0; dy < patch; dy += 2) {
+    for (let dx = 0; dx < patch; dx += 2) {
+      pushPixel(dx, dy);
+      pushPixel(width - 1 - dx, dy);
+      pushPixel(dx, height - 1 - dy);
+      pushPixel(width - 1 - dx, height - 1 - dy);
     }
   }
 
@@ -151,7 +187,7 @@ function samplePerimeterClusters(
 
   // Greedy clustering into up to 10 representative background swatches
   const clusters: { r: number; g: number; b: number; count: number }[] = [];
-  const clusterRadius = 38;
+  const clusterRadius = 28;
 
   for (const s of samples) {
     let matched = false;
@@ -178,80 +214,78 @@ function computeSobelEdges(
   width: number,
   height: number
 ): Float32Array {
-  const lum = new Float32Array(width * height);
-  for (let i = 0; i < width * height; i++) {
+  const total = width * height;
+  const lum = new Float32Array(total);
+  const rc = new Float32Array(total);
+  const gc = new Float32Array(total);
+  const bc = new Float32Array(total);
+  for (let i = 0; i < total; i++) {
     const idx = i * 4;
-    lum[i] = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+    const r = data[idx];
+    const g = data[idx + 1];
+    const b = data[idx + 2];
+    rc[i] = r;
+    gc[i] = g;
+    bc[i] = b;
+    lum[i] = 0.299 * r + 0.587 * g + 0.114 * b;
   }
 
-  const edges = new Float32Array(width * height);
+  const gradAt = (arr: Float32Array, i: number) => {
+    const gx =
+      -arr[i - width - 1] +
+      arr[i - width + 1] -
+      2 * arr[i - 1] +
+      2 * arr[i + 1] -
+      arr[i + width - 1] +
+      arr[i + width + 1];
+    const gy =
+      -arr[i - width - 1] -
+      2 * arr[i - width] -
+      arr[i - width + 1] +
+      arr[i + width - 1] +
+      2 * arr[i + width] +
+      arr[i + width + 1];
+    return Math.sqrt(gx * gx + gy * gy) * 0.25;
+  };
+
+  const edges = new Float32Array(total);
   for (let y = 1; y < height - 1; y++) {
     const rowOffset = y * width;
     for (let x = 1; x < width - 1; x++) {
       const i = rowOffset + x;
-      const gx =
-        -lum[i - width - 1] +
-        lum[i - width + 1] -
-        2 * lum[i - 1] +
-        2 * lum[i + 1] -
-        lum[i + width - 1] +
-        lum[i + width + 1];
-      const gy =
-        -lum[i - width - 1] -
-        2 * lum[i - width] -
-        lum[i - width + 1] +
-        lum[i + width - 1] +
-        2 * lum[i + width] +
-        lum[i + width + 1];
-      edges[i] = Math.sqrt(gx * gx + gy * gy) * 0.25;
+      const gLum = gradAt(lum, i);
+      const gRgb = Math.max(gradAt(rc, i), gradAt(gc, i), gradAt(bc, i));
+      edges[i] = Math.max(gLum, gRgb * 0.85);
     }
   }
   return edges;
 }
 
-export async function removeBackgroundAndCompose(
-  sourceDataUrl: string,
-  productBox: ProductBox,
-  backdropPreset: BackdropPreset,
+export function computeProductBackgroundMask(
+  data: Uint8ClampedArray,
+  w: number,
+  h: number,
+  innerBox: NormalizedRect,
   sensitivity = 44,
-  accentHex?: string,
   wearType?: WearType
-): Promise<CutoutResult> {
-  const img = await loadImageElement(sourceDataUrl);
-
-  // Normalize & tighten crop around the AI-detected product box (avoid expanding into nearby header text)
-  const pad = 8;
-  const ymin = Math.max(0, (productBox.ymin - pad) / 1000);
-  const xmin = Math.max(0, (productBox.xmin - pad) / 1000);
-  const ymax = Math.min(1, (productBox.ymax + pad) / 1000);
-  const xmax = Math.min(1, (productBox.xmax + pad) / 1000);
-
-  const cropX = Math.floor(xmin * img.naturalWidth);
-  const cropY = Math.floor(ymin * img.naturalHeight);
-  const cropW = Math.max(32, Math.floor((xmax - xmin) * img.naturalWidth));
-  const cropH = Math.max(32, Math.floor((ymax - ymin) * img.naturalHeight));
-
-  // Work at max 820px dimension for sharp output & sub-120ms execution
-  const maxDim = 820;
-  const scale = Math.min(1, maxDim / Math.max(cropW, cropH));
-  const w = Math.max(32, Math.round(cropW * scale));
-  const h = Math.max(32, Math.round(cropH * scale));
-
-  const workCanvas = document.createElement("canvas");
-  workCanvas.width = w;
-  workCanvas.height = h;
-  const ctx = workCanvas.getContext("2d", { willReadFrequently: true });
-  if (!ctx) throw new Error("Canvas 2D context unavailable.");
-
-  ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, w, h);
-  const imgData = ctx.getImageData(0, 0, w, h);
-  const data = imgData.data;
-
-  const clusters = samplePerimeterClusters(data, w, h);
+): {
+  alpha: Float32Array;
+  bgMask: Uint8Array;
+  distMap: Float32Array;
+  edges: Float32Array;
+  avgBgLum: number;
+} {
+  const totalPixels = w * h;
+  const clusters = sampleCleanPerimeterClusters(data, w, h, innerBox);
   const edges = computeSobelEdges(data, w, h);
 
+  let avgBgLum = 0;
+  for (const c of clusters) {
+    avgBgLum += 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
+  }
+  avgBgLum /= Math.max(1, clusters.length);
+
   // Dilate Sobel edges 3x3 so soft anti-aliased packaging contours form an unbroken flood barrier
-  const totalPixels = w * h;
   const dilatedEdges = new Float32Array(totalPixels);
   for (let y = 1; y < h - 1; y++) {
     for (let x = 1; x < w - 1; x++) {
@@ -285,34 +319,60 @@ export async function removeBackgroundAndCompose(
     distMap[i] = minD;
   }
 
-  // Edge-seeded flood fill using a pre-allocated Int32Array queue
+  const boxW = Math.max(12, innerBox.maxX - innerBox.minX);
+  const boxH = Math.max(12, innerBox.maxY - innerBox.minY);
+  const coreMinX = innerBox.minX + boxW * 0.08;
+  const coreMaxX = innerBox.maxX - boxW * 0.08;
+  const coreMinY = innerBox.minY + boxH * 0.06;
+  const coreMaxY = innerBox.maxY - boxH * 0.06;
+
+  const isInCoreBox = (x: number, y: number) =>
+    x >= coreMinX && x <= coreMaxX && y >= coreMinY && y <= coreMaxY;
+
+  const pixelStepDist = (i1: number, i2: number) => {
+    const a = i1 * 4;
+    const b = i2 * 4;
+    const dr = data[a] - data[b];
+    const dg = data[a + 1] - data[b + 1];
+    const db = data[a + 2] - data[b + 2];
+    return Math.sqrt(3 * dr * dr + 4 * dg * dg + 2 * db * db);
+  };
+
+  // Pass 1: Border-seeded flood fill using clean backdrop swatches + Sobel edge barriers
   const bgMask = new Uint8Array(totalPixels); // 1 = background, 0 = foreground
   const visited = new Uint8Array(totalPixels);
   const queue = new Int32Array(totalPixels);
   let head = 0;
   let tail = 0;
 
-  // Map sensitivity (10..85) to perceptual color threshold & crisp dilated edge barrier
-  const colorThreshold = sensitivity * 0.85;
-  const strongEdgeBarrier = Math.max(9, 17 - sensitivity * 0.14);
+  const colorThreshold = sensitivity * 0.9;
+  const strongEdgeBarrier = Math.max(8, 16.5 - sensitivity * 0.13);
+  const bottomCenterMinX = w * 0.18;
+  const bottomCenterMaxX = w * 0.82;
 
-  const trySeed = (x: number, y: number) => {
+  const trySeed = (x: number, y: number, isBottomEdge = false) => {
     const i = y * w + x;
     if (visited[i]) return;
     visited[i] = 1;
-    if (distMap[i] <= colorThreshold && dilatedEdges[i] < strongEdgeBarrier) {
+    const edgeLimit = isBottomEdge && x > bottomCenterMinX && x < bottomCenterMaxX
+      ? strongEdgeBarrier * 0.7
+      : strongEdgeBarrier;
+    const colorLimit = isBottomEdge && x > bottomCenterMinX && x < bottomCenterMaxX
+      ? colorThreshold * 0.72
+      : colorThreshold;
+    if (distMap[i] <= colorLimit && dilatedEdges[i] < edgeLimit) {
       bgMask[i] = 1;
       queue[tail++] = i;
     }
   };
 
   for (let x = 0; x < w; x++) {
-    trySeed(x, 0);
-    trySeed(x, h - 1);
+    trySeed(x, 0, false);
+    trySeed(x, h - 1, true);
   }
   for (let y = 0; y < h; y++) {
-    trySeed(0, y);
-    trySeed(w - 1, y);
+    trySeed(0, y, false);
+    trySeed(w - 1, y, false);
   }
 
   while (head < tail) {
@@ -331,14 +391,83 @@ export async function removeBackgroundAndCompose(
       const ni = neighbors[n];
       if (ni < 0 || visited[ni]) continue;
 
+      const nx = ni % w;
+      const ny = (ni - nx) / w;
+      const insideCore = isInCoreBox(nx, ny);
       const d = distMap[ni];
       const e = dilatedEdges[ni];
+      const localStep = pixelStepDist(ni, curr);
 
-      // Stop strictly at packaging/product contour edges
-      if (d <= colorThreshold && e < strongEdgeBarrier) {
+      const allowedColor = insideCore ? colorThreshold * 0.88 : colorThreshold * 1.12;
+      const allowedEdge = insideCore ? strongEdgeBarrier * 0.86 : strongEdgeBarrier;
+      const allowedStep = insideCore ? 12 : 18;
+
+      if (d <= allowedColor && e < allowedEdge && localStep <= allowedStep) {
         visited[ni] = 1;
         bgMask[ni] = 1;
         queue[tail++] = ni;
+      }
+    }
+  }
+
+  // Pass 2: Smooth Studio Gradient & Soft Shadow Halo Sweep
+  // Clears gradual radial spotlight / tabletop gradients up to the true Sobel contour
+  // without leaving a faint rectangular box around the product.
+  const pass2Queue = new Int32Array(totalPixels);
+  let p2Head = 0;
+  let p2Tail = 0;
+  for (let i = 0; i < totalPixels; i++) {
+    if (bgMask[i] === 1) {
+      pass2Queue[p2Tail++] = i;
+    }
+  }
+
+  const maxGradDist = colorThreshold * 1.85;
+  const maxGradEdge = Math.max(6.5, strongEdgeBarrier * 0.78);
+  while (p2Head < p2Tail) {
+    const curr = pass2Queue[p2Head++];
+    const cx = curr % w;
+    const cy = (curr - cx) / w;
+
+    const neighbors = [
+      cx > 0 ? curr - 1 : -1,
+      cx < w - 1 ? curr + 1 : -1,
+      cy > 0 ? curr - w : -1,
+      cy < h - 1 ? curr + w : -1,
+    ];
+
+    for (let n = 0; n < 4; n++) {
+      const ni = neighbors[n];
+      if (ni < 0 || bgMask[ni] === 1) continue;
+
+      const nx = ni % w;
+      const ny = (ni - nx) / w;
+      const insideCore = isInCoreBox(nx, ny);
+      const localStep = pixelStepDist(ni, curr);
+      const rawEdge = edges[ni];
+      const dilEdge = dilatedEdges[ni];
+
+      // Stop hard at any product edge or sudden color jump
+      if (insideCore) {
+        if (
+          distMap[ni] <= colorThreshold * 1.15 &&
+          localStep <= 6.5 &&
+          rawEdge < 5.5 &&
+          dilEdge < maxGradEdge * 0.82
+        ) {
+          bgMask[ni] = 1;
+          pass2Queue[p2Tail++] = ni;
+        }
+      } else {
+        if (
+          distMap[ni] <= maxGradDist &&
+          localStep <= 9.5 &&
+          rawEdge < 7.5 &&
+          dilEdge < maxGradEdge
+        ) {
+          bgMask[ni] = 1;
+          pass2Queue[p2Tail++] = ni;
+        }
       }
     }
   }
@@ -400,56 +529,55 @@ export async function removeBackgroundAndCompose(
       }
     }
   } else {
-    // 2D Enclosure Seal for solid products (bottles, labels, apparel, gadgets):
-    // Any background-marked pixel enclosed BOTH vertically and horizontally by solid foreground is interior product.
-    const rowMinFg = new Int32Array(h).fill(w);
-    const rowMaxFg = new Int32Array(h).fill(-1);
-    const colMinFg = new Int32Array(w).fill(h);
-    const colMaxFg = new Int32Array(w).fill(-1);
+    // Pure 2D Topological Seal for solid products (bottles, labels, earbuds, apparel):
+    // Any enclosed region completely surrounded by foreground (not connected to any outer image border)
+    // is interior product surface (e.g., white paper labels, bright highlights, matte screens) and MUST stay foreground.
+    const extVisited = new Uint8Array(totalPixels);
+    const extQueue = new Int32Array(totalPixels);
+    let eHead = 0;
+    let eTail = 0;
 
+    const pushExt = (i: number) => {
+      if (bgMask[i] === 1 && !extVisited[i]) {
+        extVisited[i] = 1;
+        extQueue[eTail++] = i;
+      }
+    };
+
+    for (let x = 0; x < w; x++) {
+      pushExt(x);
+      pushExt((h - 1) * w + x);
+    }
     for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        const i = y * w + x;
-        if (bgMask[i] === 0 && (distMap[i] > colorThreshold * 0.9 || dilatedEdges[i] >= strongEdgeBarrier)) {
-          if (x < rowMinFg[y]) rowMinFg[y] = x;
-          if (x > rowMaxFg[y]) rowMaxFg[y] = x;
-          if (y < colMinFg[x]) colMinFg[x] = y;
-          if (y > colMaxFg[x]) colMaxFg[x] = y;
-        }
-      }
+      pushExt(y * w);
+      pushExt(y * w + (w - 1));
     }
 
-    for (let y = 1; y < h - 1; y++) {
-      if (rowMaxFg[y] <= rowMinFg[y]) continue;
-      for (let x = rowMinFg[y] + 1; x < rowMaxFg[y]; x++) {
-        if (y > colMinFg[x] && y < colMaxFg[x]) {
-          bgMask[y * w + x] = 0;
-        }
-      }
+    while (eHead < eTail) {
+      const curr = extQueue[eHead++];
+      const cx = curr % w;
+      const cy = (curr - cx) / w;
+      if (cx > 0) pushExt(curr - 1);
+      if (cx < w - 1) pushExt(curr + 1);
+      if (cy > 0) pushExt(curr - w);
+      if (cy < h - 1) pushExt(curr + w);
     }
-  }
 
-  // Fill tiny enclosed transparent pinholes (<= 60px) inside solid glossy frames/surfaces
-  const holeVisited = new Uint8Array(totalPixels);
-  const holePixels: number[] = [];
-  for (let y = 1; y < h - 1; y++) {
-    for (let x = 1; x < w - 1; x++) {
-      const start = y * w + x;
-      if (holeVisited[start] || bgMask[start] === 0) continue;
+    // Restore any non-exterior background component up to 35% of image area back to solid foreground
+    const holeVisited = new Uint8Array(totalPixels);
+    const holePixels: number[] = [];
+    const maxInteriorHole = Math.floor(totalPixels * 0.35);
+
+    for (let i = 0; i < totalPixels; i++) {
+      if (bgMask[i] !== 1 || extVisited[i] || holeVisited[i]) continue;
       holePixels.length = 0;
       let hHead = 0;
-      holeVisited[start] = 1;
-      holePixels.push(start);
-      let touchesBorder = false;
-
+      holeVisited[i] = 1;
+      holePixels.push(i);
       while (hHead < holePixels.length) {
         const curr = holePixels[hHead++];
         const cx = curr % w;
         const cy = (curr - cx) / w;
-        if (cx === 0 || cx === w - 1 || cy === 0 || cy === h - 1) {
-          touchesBorder = true;
-        }
-        if (holePixels.length > 90 && touchesBorder) continue;
         const n4 = [
           cx > 0 ? curr - 1 : -1,
           cx < w - 1 ? curr + 1 : -1,
@@ -458,14 +586,13 @@ export async function removeBackgroundAndCompose(
         ];
         for (let k = 0; k < 4; k++) {
           const ni = n4[k];
-          if (ni >= 0 && !holeVisited[ni] && bgMask[ni] === 1) {
+          if (ni >= 0 && bgMask[ni] === 1 && !extVisited[ni] && !holeVisited[ni]) {
             holeVisited[ni] = 1;
             holePixels.push(ni);
           }
         }
       }
-
-      if (!touchesBorder && holePixels.length <= 60) {
+      if (holePixels.length <= maxInteriorHole) {
         for (let k = 0; k < holePixels.length; k++) {
           bgMask[holePixels[k]] = 0;
         }
@@ -473,7 +600,8 @@ export async function removeBackgroundAndCompose(
     }
   }
 
-  // Connected-component island cleanup: remove floating letters, studio titles, badges & stray lines
+  // Conservative connected-component cleanup: keep valid product components inside productBox;
+  // only strip tiny background specks or extreme outer-edge banner artifacts.
   const fgVisited = new Uint8Array(totalPixels);
   const components: Array<{
     pixels: number[];
@@ -531,14 +659,25 @@ export async function removeBackgroundAndCompose(
     });
   }
 
-  if (largestCompArea > 800) {
-    const minKeepArea = Math.max(380, largestCompArea * 0.08);
+  if (largestCompArea > 600) {
+    const minKeepOutsideBox = Math.max(220, largestCompArea * 0.05);
+    const minKeepInsideBox = 75;
     for (const comp of components) {
       const compH = comp.maxY - comp.minY + 1;
-      const isTinyIsland = comp.pixels.length < minKeepArea;
-      const isTextBannerStrip =
-        compH < h * 0.075 && comp.pixels.length < largestCompArea * 0.25;
-      if (isTinyIsland || isTextBannerStrip) {
+      const overlapsInnerBox =
+        comp.maxX >= innerBox.minX &&
+        comp.minX <= innerBox.maxX &&
+        comp.maxY >= innerBox.minY &&
+        comp.minY <= innerBox.maxY;
+      const isTinySpeck = overlapsInnerBox
+        ? comp.pixels.length < minKeepInsideBox
+        : comp.pixels.length < minKeepOutsideBox;
+      const isEdgeBannerStrip =
+        !overlapsInnerBox &&
+        (comp.maxY < h * 0.045 || comp.minY > h * 0.955) &&
+        compH < h * 0.06 &&
+        comp.pixels.length < largestCompArea * 0.15;
+      if (isTinySpeck || isEdgeBannerStrip) {
         for (let k = 0; k < comp.pixels.length; k++) {
           bgMask[comp.pixels[k]] = 1;
         }
@@ -546,7 +685,7 @@ export async function removeBackgroundAndCompose(
     }
   }
 
-  // Compute soft alpha feathering on the 2px boundary
+  // Gentle 1px boundary anti-aliasing (never eats into solid interior pixels)
   const alpha = new Float32Array(totalPixels);
   for (let i = 0; i < totalPixels; i++) {
     alpha[i] = bgMask[i] === 1 ? 0 : 1;
@@ -564,11 +703,12 @@ export async function removeBackgroundAndCompose(
         if (bgMask[i + w]) bgNeighbors++;
 
         if (bgNeighbors > 0) {
-          const ratio = Math.min(
+          const edgeContrast = Math.min(1, Math.max(0.55, edges[i] / 14));
+          const colorRatio = Math.min(
             1,
-            Math.max(0.25, (distMap[i] - colorThreshold * 0.25) / (colorThreshold * 0.85))
+            Math.max(0.5, (distMap[i] - colorThreshold * 0.15) / (colorThreshold * 0.7))
           );
-          feathered[i] = Math.min(1, ratio);
+          feathered[i] = Math.max(0.55, Math.min(1, Math.max(edgeContrast, colorRatio)));
         }
       } else {
         let fgNeighbors = 0;
@@ -577,7 +717,87 @@ export async function removeBackgroundAndCompose(
         if (!bgMask[i - w]) fgNeighbors++;
         if (!bgMask[i + w]) fgNeighbors++;
         if (fgNeighbors >= 3) {
-          feathered[i] = 0.9;
+          feathered[i] = 0.85;
+        }
+      }
+    }
+  }
+
+  return { alpha: feathered, bgMask, distMap, edges, avgBgLum };
+}
+
+export async function removeBackgroundAndCompose(
+  sourceDataUrl: string,
+  productBox: ProductBox,
+  backdropPreset: BackdropPreset,
+  sensitivity = 44,
+  accentHex?: string,
+  wearType?: WearType
+): Promise<CutoutResult> {
+  const img = await loadImageElement(sourceDataUrl);
+
+  // Generous crop around the AI-detected product box so outer corners land cleanly on backdrop
+  const pad = PRODUCT_CROP_PAD;
+  const ymin = Math.max(0, (productBox.ymin - pad) / 1000);
+  const xmin = Math.max(0, (productBox.xmin - pad) / 1000);
+  const ymax = Math.min(1, (productBox.ymax + pad) / 1000);
+  const xmax = Math.min(1, (productBox.xmax + pad) / 1000);
+
+  const cropX = Math.floor(xmin * img.naturalWidth);
+  const cropY = Math.floor(ymin * img.naturalHeight);
+  const cropW = Math.max(32, Math.floor((xmax - xmin) * img.naturalWidth));
+  const cropH = Math.max(32, Math.floor((ymax - ymin) * img.naturalHeight));
+
+  // Work at max 820px dimension for sharp output & sub-120ms execution
+  const maxDim = 820;
+  const scale = Math.min(1, maxDim / Math.max(cropW, cropH));
+  const w = Math.max(32, Math.round(cropW * scale));
+  const h = Math.max(32, Math.round(cropH * scale));
+
+  const workCanvas = document.createElement("canvas");
+  workCanvas.width = w;
+  workCanvas.height = h;
+  const ctx = workCanvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) throw new Error("Canvas 2D context unavailable.");
+
+  ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, w, h);
+  const imgData = ctx.getImageData(0, 0, w, h);
+  const data = imgData.data;
+  const totalPixels = w * h;
+
+  // Map AI-detected productBox into cropped canvas pixel coordinates
+  const spanX = Math.max(0.01, xmax - xmin);
+  const spanY = Math.max(0.01, ymax - ymin);
+  const innerBox: NormalizedRect = {
+    minX: Math.max(0, Math.round(((productBox.xmin / 1000 - xmin) / spanX) * w)),
+    maxX: Math.min(w - 1, Math.round(((productBox.xmax / 1000 - xmin) / spanX) * w)),
+    minY: Math.max(0, Math.round(((productBox.ymin / 1000 - ymin) / spanY) * h)),
+    maxY: Math.min(h - 1, Math.round(((productBox.ymax / 1000 - ymin) / spanY) * h)),
+  };
+
+  const { alpha: feathered, bgMask, distMap, edges, avgBgLum } =
+    computeProductBackgroundMask(data, w, h, innerBox, sensitivity, wearType);
+
+  // Subtle de-fringing ONLY on 1px semi-transparent perimeter against bright studio backdrops
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const i = y * w + x;
+      const a = feathered[i];
+      if (a > 0 && a < 0.92 && bgMask[i] === 0) {
+        const idx = i * 4;
+        const pLum = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+        if (avgBgLum - pLum > 35 && pLum > 60) {
+          // Pull semi-transparent rim slightly toward nearest solid interior neighbor to prevent white fringe halo
+          const candidates = [i - 1, i + 1, i - w, i + w];
+          for (const ci of candidates) {
+            if (feathered[ci] === 1 && distMap[ci] > distMap[i]) {
+              const cIdx = ci * 4;
+              data[idx] = Math.round(data[idx] * 0.72 + data[cIdx] * 0.28);
+              data[idx + 1] = Math.round(data[idx + 1] * 0.72 + data[cIdx + 1] * 0.28);
+              data[idx + 2] = Math.round(data[idx + 2] * 0.72 + data[cIdx + 2] * 0.28);
+              break;
+            }
+          }
         }
       }
     }
@@ -1015,10 +1235,8 @@ export function drawStudioBackdrop(
   }
 }
 
-export const DEFAULT_UGC_TRYON_IMAGE =
-  "/src/assets/images/ugc_creator_tryon_1794655293391.jpg";
-export const DEFAULT_UGC_POINTING_IMAGE =
-  "/src/assets/images/ugc_creator_pointing_clean_1794655311788.jpg";
+export const DEFAULT_UGC_TRYON_IMAGE = defaultUgcTryOnUrl;
+export const DEFAULT_UGC_POINTING_IMAGE = defaultUgcPointingUrl;
 
 function drawImageCover(
   ctx: CanvasRenderingContext2D,

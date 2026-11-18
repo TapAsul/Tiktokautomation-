@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Check, Eraser, Paintbrush, RotateCcw, Undo2, X } from "lucide-react";
 import type { ProductBox } from "../types/studio";
-import { loadImageElement } from "../utils/backgroundRemover";
+import { loadImageElement, PRODUCT_CROP_PAD } from "../utils/backgroundRemover";
 
 interface MaskRefineModalProps {
   isOpen: boolean;
@@ -44,7 +44,7 @@ export const MaskRefineModal: React.FC<MaskRefineModalProps> = ({
       if (!active) return;
 
       // Match the crop region used during auto cutout extraction
-      const pad = 8;
+      const pad = PRODUCT_CROP_PAD;
       const ymin = Math.max(0, (productBox.ymin - pad) / 1000);
       const xmin = Math.max(0, (productBox.xmin - pad) / 1000);
       const ymax = Math.min(1, (productBox.ymax + pad) / 1000);

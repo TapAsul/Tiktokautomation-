@@ -31,6 +31,30 @@ export type VoiceoverDeliveryStyle =
   | "promo_rush"
   | "kalma_asmr";
 export type VoiceoverPace = "natural" | "mabilis" | "mabagal";
+export type GoogleFlowPresenter =
+  | "pinay_genz"
+  | "pinoy_reviewer"
+  | "mom_home"
+  | "luxury_host";
+export type GoogleFlowHookAngle =
+  | "curiosity_stop"
+  | "budol_discovery"
+  | "problem_solution"
+  | "sulit_proof";
+export type GoogleFlowScene =
+  | "bedroom_vanity"
+  | "living_room"
+  | "studio_desk"
+  | "outdoor_sunlit";
+
+export interface GoogleFlowPromptOption {
+  id: string;
+  label: string;
+  tagalogHookQuote: string;
+  creatorAction: string;
+  fullPrompt: string;
+}
+
 export type WearType =
   | "apparel_top"
   | "eyewear"

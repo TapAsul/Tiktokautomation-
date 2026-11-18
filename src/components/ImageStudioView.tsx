@@ -32,6 +32,11 @@ import type {
   VisualStyle,
 } from "../types/studio";
 
+import sampleTeeImg from "../assets/images/sample_graphic_tee_1794655311660.jpg";
+import sampleSerumImg from "../assets/images/sample_vitamin_serum_1794587892747.jpg";
+import sampleEarbudsImg from "../assets/images/sample_wireless_earbuds_1794587892956.jpg";
+import sampleTumblerImg from "../assets/images/sample_ceramic_tumbler_1794587893428.jpg";
+
 export interface SampleProduct {
   id: string;
   label: string;
@@ -44,25 +49,25 @@ export const SAMPLE_PRODUCTS: SampleProduct[] = [
     id: "tee",
     label: "Graphic Cotton Tee",
     category: "Apparel",
-    imagePath: "/src/assets/images/sample_graphic_tee_1794655311660.jpg",
+    imagePath: sampleTeeImg,
   },
   {
     id: "serum",
     label: "Vitamin C Serum",
     category: "Skincare",
-    imagePath: "/src/assets/images/sample_vitamin_serum_1794587892747.jpg",
+    imagePath: sampleSerumImg,
   },
   {
     id: "earbuds",
     label: "ANC Wireless Earbuds",
     category: "Tech Audio",
-    imagePath: "/src/assets/images/sample_wireless_earbuds_1794587892956.jpg",
+    imagePath: sampleEarbudsImg,
   },
   {
     id: "tumbler",
     label: "Sage Travel Tumbler",
     category: "Lifestyle",
-    imagePath: "/src/assets/images/sample_ceramic_tumbler_1794587893428.jpg",
+    imagePath: sampleTumblerImg,
   },
 ];
 

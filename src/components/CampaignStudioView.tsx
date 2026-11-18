@@ -5,7 +5,6 @@ import {
   Clapperboard,
   Copy,
   Download,
-  ExternalLink,
   Hash,
   Image as ImageIcon,
   Loader2,
@@ -29,9 +28,14 @@ import type {
   VoiceoverDeliveryStyle,
   VoiceoverLanguageMode,
   VoiceoverPace,
+  GoogleFlowPresenter,
+  GoogleFlowHookAngle,
+  GoogleFlowScene,
+  GoogleFlowPromptOption,
 } from "../types/studio";
 import type { CopyRegenScope } from "./CopywriterView";
 import { TagalogVoiceoverPanel } from "./TagalogVoiceoverPanel";
+import { GoogleFlowPromptPanel } from "./GoogleFlowPromptPanel";
 
 interface CampaignStudioViewProps {
   projectId: string | null;
@@ -82,6 +86,16 @@ interface CampaignStudioViewProps {
   onGenerateVoiceoverScript: () => void;
   onSynthesizeVoiceover: () => void;
   onSaveProject: () => void;
+  flowPresenter: GoogleFlowPresenter;
+  flowHookAngle: GoogleFlowHookAngle;
+  flowScene: GoogleFlowScene;
+  flowPromptOptions: GoogleFlowPromptOption[];
+  isGeneratingFlowPrompts: boolean;
+  flowPromptError: string | null;
+  onChangeFlowPresenter: (p: GoogleFlowPresenter) => void;
+  onChangeFlowHookAngle: (h: GoogleFlowHookAngle) => void;
+  onChangeFlowScene: (s: GoogleFlowScene) => void;
+  onGenerateFlowPrompts: (productOverride?: string) => void;
   onNavigate: (section: StudioSection) => void;
 }
 
@@ -142,6 +156,16 @@ export const CampaignStudioView: React.FC<CampaignStudioViewProps> = ({
   onGenerateVoiceoverScript,
   onSynthesizeVoiceover,
   onSaveProject,
+  flowPresenter,
+  flowHookAngle,
+  flowScene,
+  flowPromptOptions,
+  isGeneratingFlowPrompts,
+  flowPromptError,
+  onChangeFlowPresenter,
+  onChangeFlowHookAngle,
+  onChangeFlowScene,
+  onGenerateFlowPrompts,
   onNavigate,
 }) => {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -865,47 +889,30 @@ export const CampaignStudioView: React.FC<CampaignStudioViewProps> = ({
             onSynthesize={onSynthesizeVoiceover}
           />
 
-          <div className="space-y-2.5">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold text-slate-300">
-                Google Flow Video Prompt
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    copyText("flow", strategist.googleFlowPrompt || "")
-                  }
-                  className="text-xs text-rose-400 hover:text-rose-300 cursor-pointer"
-                >
-                  {copiedKey === "flow" ? "Copied" : "Copy Prompt"}
-                </button>
-                <a
-                  href="https://labs.google/fx/tools/flow"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-slate-200 hover:text-white"
-                >
-                  Open Google Flow
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-            </div>
-            <textarea
-              rows={3}
-              value={strategist.googleFlowPrompt}
-              onChange={(e) =>
-                onUpdateAnalysis({
-                  ...analysis,
-                  strategist: {
-                    ...strategist,
-                    googleFlowPrompt: e.target.value,
-                  },
-                })
-              }
-              className="w-full rounded-xl border border-slate-800 bg-[#0B0F17] p-3 text-xs text-slate-100 leading-relaxed focus:outline-none focus:border-rose-500"
-            />
-          </div>
+          <GoogleFlowPromptPanel
+            compact
+            activePrompt={strategist.googleFlowPrompt}
+            productNameHint={analysis.productName}
+            presenter={flowPresenter}
+            hookAngle={flowHookAngle}
+            scene={flowScene}
+            options={flowPromptOptions}
+            isGenerating={isGeneratingFlowPrompts}
+            errorMsg={flowPromptError}
+            onChangePrompt={(next) =>
+              onUpdateAnalysis({
+                ...analysis,
+                strategist: {
+                  ...strategist,
+                  googleFlowPrompt: next,
+                },
+              })
+            }
+            onChangePresenter={onChangeFlowPresenter}
+            onChangeHookAngle={onChangeFlowHookAngle}
+            onChangeScene={onChangeFlowScene}
+            onGenerateOptions={onGenerateFlowPrompts}
+          />
         </div>
       </section>
     </div>

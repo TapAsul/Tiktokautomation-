@@ -1,10 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   AlertCircle,
-  Check,
   CheckCircle2,
   Clapperboard,
-  Copy,
   Download,
   ExternalLink,
   Eye,
@@ -37,9 +35,14 @@ import type {
   VoiceoverDeliveryStyle,
   VoiceoverLanguageMode,
   VoiceoverPace,
+  GoogleFlowPresenter,
+  GoogleFlowHookAngle,
+  GoogleFlowScene,
+  GoogleFlowPromptOption,
 } from "../types/studio";
 import { BACKDROP_THEMES } from "../utils/backgroundRemover";
 import { TagalogVoiceoverPanel } from "./TagalogVoiceoverPanel";
+import { GoogleFlowPromptPanel } from "./GoogleFlowPromptPanel";
 
 export const MOTION_PRESETS: MotionPreset[] = [
   "Cinematic Product Reveal",
@@ -114,6 +117,17 @@ interface VideoStudioViewProps {
   onChangeVoiceoverPace: (p: VoiceoverPace) => void;
   onGenerateVoiceoverScript: () => void;
   onSynthesizeVoiceover: () => void;
+  googleFlowPrompt: string;
+  flowPresenter: GoogleFlowPresenter;
+  flowHookAngle: GoogleFlowHookAngle;
+  flowScene: GoogleFlowScene;
+  flowPromptOptions: GoogleFlowPromptOption[];
+  isGeneratingFlowPrompts: boolean;
+  flowPromptError: string | null;
+  onChangeFlowPresenter: (p: GoogleFlowPresenter) => void;
+  onChangeFlowHookAngle: (h: GoogleFlowHookAngle) => void;
+  onChangeFlowScene: (s: GoogleFlowScene) => void;
+  onGenerateFlowPrompts: (productOverride?: string) => void;
   onUpdateGoogleFlowPrompt: (p: string) => void;
   onSendToCampaign: () => void;
 }
@@ -177,6 +191,17 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({
   onChangeVoiceoverPace,
   onGenerateVoiceoverScript,
   onSynthesizeVoiceover,
+  googleFlowPrompt,
+  flowPresenter,
+  flowHookAngle,
+  flowScene,
+  flowPromptOptions,
+  isGeneratingFlowPrompts,
+  flowPromptError,
+  onChangeFlowPresenter,
+  onChangeFlowHookAngle,
+  onChangeFlowScene,
+  onGenerateFlowPrompts,
   onUpdateGoogleFlowPrompt,
   onSendToCampaign,
 }) => {
@@ -189,7 +214,6 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({
   const [showSafeZone, setShowSafeZone] = useState(true);
   const [showOverlayPreview, setShowOverlayPreview] = useState(false);
   const [isShowcasePlaying, setIsShowcasePlaying] = useState(false);
-  const [copiedFlow, setCopiedFlow] = useState(false);
 
   const displayedShowcaseVideo =
     showcaseMode === "ai_video"
@@ -224,14 +248,6 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 36);
-
-  const copyFlowPrompt = async () => {
-    const text = analysis?.strategist.googleFlowPrompt || motionPrompt;
-    if (!text) return;
-    await navigator.clipboard.writeText(text).catch(() => {});
-    setCopiedFlow(true);
-    window.setTimeout(() => setCopiedFlow(false), 1800);
-  };
 
   const imageChoices: Array<{ id: string; label: string; url: string }> = [
     ...concepts.map((c) => ({
@@ -319,47 +335,23 @@ export const VideoStudioView: React.FC<VideoStudioViewProps> = ({
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-          {/* Left: Manual Flow Prompt Helper & Manual Video Upload */}
+          {/* Left: Tagalog Creator Google Flow Prompt Options & Manual Video Upload */}
           <div className="lg:col-span-7 space-y-4">
-            <div className="rounded-xl border border-slate-800 bg-[#0B0F17] p-4 space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="text-xs font-semibold text-white">
-                  Manual Flow Prompt Helper (Optional)
-                </div>
-                <button
-                  type="button"
-                  disabled={!analysis?.strategist.googleFlowPrompt && !motionPrompt}
-                  onClick={() => void copyFlowPrompt()}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-700 bg-[#121824] hover:bg-slate-800 disabled:opacity-40 text-xs font-semibold text-slate-200 cursor-pointer whitespace-nowrap"
-                >
-                  {copiedFlow ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-emerald-400" />
-                      Copied Prompt
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" />
-                      Copy Prompt for Flow
-                    </>
-                  )}
-                </button>
-              </div>
-
-              {analysis ? (
-                <textarea
-                  rows={3}
-                  value={analysis.strategist.googleFlowPrompt}
-                  onChange={(e) => onUpdateGoogleFlowPrompt(e.target.value)}
-                  className="w-full rounded-lg border border-slate-800 bg-[#121824] p-2.5 text-xs text-slate-200 focus:outline-none focus:border-rose-500"
-                />
-              ) : (
-                <p className="text-xs text-slate-500">
-                  Optional: Analyze a product in Section 2 or Copywriter first
-                  to pre-draft a prompt you can copy and paste into Google Flow.
-                </p>
-              )}
-            </div>
+            <GoogleFlowPromptPanel
+              activePrompt={googleFlowPrompt}
+              productNameHint={analysis?.productName || approvedImageLabel}
+              presenter={flowPresenter}
+              hookAngle={flowHookAngle}
+              scene={flowScene}
+              options={flowPromptOptions}
+              isGenerating={isGeneratingFlowPrompts}
+              errorMsg={flowPromptError}
+              onChangePrompt={onUpdateGoogleFlowPrompt}
+              onChangePresenter={onChangeFlowPresenter}
+              onChangeHookAngle={onChangeFlowHookAngle}
+              onChangeScene={onChangeFlowScene}
+              onGenerateOptions={onGenerateFlowPrompts}
+            />
 
             <div className="rounded-xl border border-dashed border-slate-700 bg-[#0B0F17] p-4 flex flex-wrap items-center justify-between gap-4">
               <div className="space-y-1 max-w-md">

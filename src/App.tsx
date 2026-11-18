@@ -41,6 +41,10 @@ import type {
   VoiceoverDeliveryStyle,
   VoiceoverLanguageMode,
   VoiceoverPace,
+  GoogleFlowPresenter,
+  GoogleFlowHookAngle,
+  GoogleFlowScene,
+  GoogleFlowPromptOption,
 } from "./types/studio";
 import { removeBackgroundAndCompose } from "./utils/backgroundRemover";
 import { compositeExactProductOverBackground } from "./utils/imageCompositor";
@@ -86,6 +90,62 @@ interface RawServerConcept {
   mimeType?: string;
   fallbackBackdrop?: BackdropPreset;
   apiNotice?: string;
+}
+
+const LOCAL_PROJECTS_KEY = "ps_edge_projects_v1";
+
+function loadLocalProjects(): StoredProjectFull[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_PROJECTS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as StoredProjectFull[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalProjects(list: StoredProjectFull[]) {
+  try {
+    localStorage.setItem(LOCAL_PROJECTS_KEY, JSON.stringify(list));
+  } catch {
+    // Trim oldest or drop heavy video data URLs if browser quota is tight
+    const slimmed = list.slice(0, 6).map((p) => ({
+      ...p,
+      assets: p.assets.filter((a) => a.kind !== "video"),
+    }));
+    try {
+      localStorage.setItem(LOCAL_PROJECTS_KEY, JSON.stringify(slimmed));
+    } catch {
+      // ignore if storage blocked
+    }
+  }
+}
+
+function toProjectSummaries(list: StoredProjectFull[]): ProjectSummary[] {
+  return [...list]
+    .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
+    .map((p) => {
+      const thumb =
+        p.assets.find((a) => a.kind === "concept") ||
+        p.assets.find((a) => a.kind === "source") ||
+        p.assets.find((a) => a.kind === "cutout");
+      return {
+        id: p.id,
+        name: p.name,
+        campaignType: p.campaignType,
+        clientOrBrandName: p.clientOrBrandName,
+        visualStyle: p.visualStyle,
+        aspectRatio: p.aspectRatio,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+        thumbnailUrl: thumb?.url,
+        assetCount: p.assets.filter(
+          (a) => a.kind === "concept" || a.kind === "cutout"
+        ).length,
+        videoCount: p.assets.filter((a) => a.kind === "video").length,
+      };
+    });
 }
 
 export default function App() {
@@ -193,6 +253,18 @@ export default function App() {
   const [voiceoverUrl, setVoiceoverUrl] = useState<string | null>(null);
   const [voiceoverError, setVoiceoverError] = useState<string | null>(null);
   const [isGeneratingVoiceScript, setIsGeneratingVoiceScript] = useState(false);
+  const [flowPromptDraft, setFlowPromptDraft] = useState<string>("");
+  const [flowPresenter, setFlowPresenter] =
+    useState<GoogleFlowPresenter>("pinay_genz");
+  const [flowHookAngle, setFlowHookAngle] =
+    useState<GoogleFlowHookAngle>("curiosity_stop");
+  const [flowScene, setFlowScene] =
+    useState<GoogleFlowScene>("bedroom_vanity");
+  const [flowPromptOptions, setFlowPromptOptions] = useState<
+    GoogleFlowPromptOption[]
+  >([]);
+  const [isGeneratingFlowPrompts, setIsGeneratingFlowPrompts] = useState(false);
+  const [flowPromptError, setFlowPromptError] = useState<string | null>(null);
   const [isRegeneratingCopy, setIsRegeneratingCopy] = useState(false);
   const [isSynthesizingVoiceover, setIsSynthesizingVoiceover] = useState(false);
   const [isSavingProject, setIsSavingProject] = useState(false);
@@ -225,8 +297,15 @@ export default function App() {
       if (cfgRes.ok) setModelConfig(await cfgRes.json());
       if (usageRes.ok) setUsage(await usageRes.json());
       if (projRes.ok) {
-        const data = await projRes.json();
-        setProjects(data.projects || []);
+        const data = (await projRes.json()) as {
+          projects?: ProjectSummary[];
+          storage?: string;
+        };
+        if (data.storage === "ephemeral") {
+          setProjects(toProjectSummaries(loadLocalProjects()));
+        } else {
+          setProjects(data.projects || []);
+        }
       }
       if (availRes.ok) setAvailability(await availRes.json());
     } catch {
@@ -883,6 +962,71 @@ export default function App() {
     }
   };
 
+  const activeGoogleFlowPrompt =
+    analysis?.strategist.googleFlowPrompt ?? flowPromptDraft;
+
+  const handleUpdateGoogleFlowPrompt = (nextPrompt: string) => {
+    if (analysis) {
+      setAnalysis({
+        ...analysis,
+        strategist: {
+          ...analysis.strategist,
+          googleFlowPrompt: nextPrompt,
+        },
+      });
+    } else {
+      setFlowPromptDraft(nextPrompt);
+    }
+  };
+
+  const handleGenerateFlowPrompts = async (productOverride?: string) => {
+    const productTitle =
+      productOverride?.trim() ||
+      analysis?.productName ||
+      approvedVideoImgLabel ||
+      sourceLabel ||
+      "";
+    if (!productTitle) return;
+    setIsGeneratingFlowPrompts(true);
+    setFlowPromptError(null);
+    try {
+      const res = await fetch("/api/google-flow/prompts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productName: productTitle,
+          category: analysis?.category || "Consumer Goods",
+          appearance: analysis?.appearance || "",
+          keyBenefits: analysis?.keyBenefits || [],
+          pricePromo,
+          verifiedDiscounts,
+          productDetails,
+          presenter: flowPresenter,
+          hookAngle: flowHookAngle,
+          scene: flowScene,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !Array.isArray(data.options)) {
+        throw new Error(data?.error || "Could not generate Google Flow prompts.");
+      }
+      const opts = data.options as GoogleFlowPromptOption[];
+      setFlowPromptOptions(opts);
+      if (opts[0]?.fullPrompt) {
+        handleUpdateGoogleFlowPrompt(opts[0].fullPrompt);
+      }
+      void refreshMetadata();
+    } catch (err: unknown) {
+      setFlowPromptError(
+        err instanceof Error
+          ? err.message
+          : "Google Flow prompt generation failed."
+      );
+    } finally {
+      setIsGeneratingFlowPrompts(false);
+    }
+  };
+
   const activeVoiceoverScript =
     analysis?.strategist.videoScript.voiceoverText ?? voiceoverScriptDraft;
 
@@ -1375,8 +1519,16 @@ export default function App() {
           assetsToSave,
         }),
       });
-      const saved = (await res.json()) as StoredProjectFull;
+      const saved = (await res.json()) as StoredProjectFull & {
+        storage?: string;
+      };
       if (!res.ok) throw new Error("Failed to save project.");
+      if (saved.storage === "ephemeral") {
+        const existing = loadLocalProjects().filter((p) => p.id !== saved.id);
+        const nextList = [saved, ...existing];
+        saveLocalProjects(nextList);
+        setProjects(toProjectSummaries(nextList));
+      }
       setProjectId(saved.id);
       setCampaignName(saved.name);
       setSaveStatusMsg(`Saved project "${saved.name}" with ${saved.assets.length} assets.`);
@@ -1393,8 +1545,10 @@ export default function App() {
   const handleReopenProject = async (id: string) => {
     try {
       const res = await fetch(`/api/projects/${id}`);
-      if (!res.ok) return;
-      const proj = (await res.json()) as StoredProjectFull;
+      const proj = res.ok
+        ? ((await res.json()) as StoredProjectFull)
+        : loadLocalProjects().find((p) => p.id === id);
+      if (!proj) return;
       setProjectId(proj.id);
       setCampaignName(proj.name);
       setCampaignType(proj.campaignType);
@@ -1497,6 +1651,9 @@ export default function App() {
       setVoiceoverBase64(null);
       setVoiceoverScriptDraft("");
       setVoiceoverError(null);
+      setFlowPromptDraft("");
+      setFlowPromptOptions([]);
+      setFlowPromptError(null);
       setErrorMsg(null);
       setApiWarning(null);
       setSaveStatusMsg(null);
@@ -1676,13 +1833,18 @@ export default function App() {
           }}
           onGenerateVoiceoverScript={() => void handleGenerateVoiceoverScript()}
           onSynthesizeVoiceover={() => void handleSynthesizeVoiceover()}
-          onUpdateGoogleFlowPrompt={(p) =>
-            analysis &&
-            setAnalysis({
-              ...analysis,
-              strategist: { ...analysis.strategist, googleFlowPrompt: p },
-            })
-          }
+          googleFlowPrompt={activeGoogleFlowPrompt}
+          flowPresenter={flowPresenter}
+          flowHookAngle={flowHookAngle}
+          flowScene={flowScene}
+          flowPromptOptions={flowPromptOptions}
+          isGeneratingFlowPrompts={isGeneratingFlowPrompts}
+          flowPromptError={flowPromptError}
+          onChangeFlowPresenter={setFlowPresenter}
+          onChangeFlowHookAngle={setFlowHookAngle}
+          onChangeFlowScene={setFlowScene}
+          onGenerateFlowPrompts={(p) => void handleGenerateFlowPrompts(p)}
+          onUpdateGoogleFlowPrompt={handleUpdateGoogleFlowPrompt}
           onSendToCampaign={() => setActiveSection("campaign_studio")}
         />
       )}
@@ -1738,6 +1900,16 @@ export default function App() {
           }
           onGenerateVoiceoverScript={() => void handleGenerateVoiceoverScript()}
           onSynthesizeVoiceover={() => void handleSynthesizeVoiceover()}
+          flowPresenter={flowPresenter}
+          flowHookAngle={flowHookAngle}
+          flowScene={flowScene}
+          flowPromptOptions={flowPromptOptions}
+          isGeneratingFlowPrompts={isGeneratingFlowPrompts}
+          flowPromptError={flowPromptError}
+          onChangeFlowPresenter={setFlowPresenter}
+          onChangeFlowHookAngle={setFlowHookAngle}
+          onChangeFlowScene={setFlowScene}
+          onGenerateFlowPrompts={(p) => void handleGenerateFlowPrompts(p)}
           onNavigate={setActiveSection}
         />
       )}
@@ -1806,6 +1978,16 @@ export default function App() {
           onGenerateVoiceoverScript={() => void handleGenerateVoiceoverScript()}
           onSynthesizeVoiceover={() => void handleSynthesizeVoiceover()}
           onSaveProject={() => void handleSaveProject()}
+          flowPresenter={flowPresenter}
+          flowHookAngle={flowHookAngle}
+          flowScene={flowScene}
+          flowPromptOptions={flowPromptOptions}
+          isGeneratingFlowPrompts={isGeneratingFlowPrompts}
+          flowPromptError={flowPromptError}
+          onChangeFlowPresenter={setFlowPresenter}
+          onChangeFlowHookAngle={setFlowHookAngle}
+          onChangeFlowScene={setFlowScene}
+          onGenerateFlowPrompts={(p) => void handleGenerateFlowPrompts(p)}
           onNavigate={setActiveSection}
         />
       )}
@@ -1816,22 +1998,36 @@ export default function App() {
           onRefreshProjects={() => void refreshMetadata()}
           onReopenProject={(id) => void handleReopenProject(id)}
           onRenameProject={async (id, name) => {
-            await fetch(`/api/projects/${id}`, {
+            const res = await fetch(`/api/projects/${id}`, {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ name }),
             });
+            if (!res.ok) {
+              const local = loadLocalProjects().map((p) =>
+                p.id === id
+                  ? { ...p, name, updatedAt: new Date().toISOString() }
+                  : p
+              );
+              saveLocalProjects(local);
+              setProjects(toProjectSummaries(local));
+            }
             await refreshMetadata();
           }}
           onDeleteProject={async (id) => {
-            await fetch(`/api/projects/${id}`, { method: "DELETE" });
+            const res = await fetch(`/api/projects/${id}`, { method: "DELETE" });
+            if (!res.ok) {
+              const local = loadLocalProjects().filter((p) => p.id !== id);
+              saveLocalProjects(local);
+              setProjects(toProjectSummaries(local));
+            }
             if (projectId === id) setProjectId(null);
             await refreshMetadata();
           }}
           onFetchProjectDetail={async (id) => {
             const res = await fetch(`/api/projects/${id}`);
-            if (!res.ok) return null;
-            return (await res.json()) as StoredProjectFull;
+            if (res.ok) return (await res.json()) as StoredProjectFull;
+            return loadLocalProjects().find((p) => p.id === id) || null;
           }}
         />
       )}
